@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Apple Music Test</title>
+</head>
+<body>
+  <h1>Apple Music Test</h1>
+
+  <div>
+    <button id="check">Comprobar MusicKit</button>
+    <button id="auth" disabled>Autorizar Apple Music</button>
+  </div>
+
+  <pre id="result">Esperando...</pre>
+
+  <script>
+    const MUSICKIT_SRC = 'https://js-cdn.music.apple.com/musickit/v3/musickit.js';
+
+    function loadMusicKitScript() {
+      return new Promise((resolve, reject) => {
+        if (window.MusicKit) return resolve(window.MusicKit);
+        const s = document.createElement('script');
+        s.src = MUSICKIT_SRC;
+        s.async = true;
+        s.onload = () => (window.MusicKit ? resolve(window.MusicKit) : reject(new Error('MusicKit no disponible tras cargar el script')));
+        s.onerror = () => reject(new Error('Error cargando el script de MusicKit'));
+        document.head.appendChild(s);
+      });
+    }
+
+    async function init() {
+      const btnCheck = document.getElementById('check');
+      const btnAuth = document.getElementById('auth');
+      const result = document.getElementById('result');
+
+      btnCheck.onclick = async () => {
+        result.textContent = 'Cargando SDK de MusicKit...';
+        try {
+          await loadMusicKitScript();
+
+          // Configura MusicKit: reemplaza 'YOUR_DEVELOPER_TOKEN' por un token generado en tu servidor.
+          // No expongas claves privadas en clientes públicos. Genera developer tokens server-side.
+          const music = MusicKit.configure({
+            developerToken: 'YOUR_DEVELOPER_TOKEN',
+            app: { name: 'Apple Music Test', build: '1.0' }
+          });
+
+          window.music = music; // acceso global para pruebas
+
+          result.textContent =
+            'MusicKit está disponible ✅\n\n' +
+            'Clave pública del objeto MusicKit:\n' +
+            Object.keys(window.MusicKit).join(', ') + '\n\n' +
+            'Estado de autorización: ' + (music.isAuthorized ? 'Autorizado' : 'No autorizado');
+
+          btnAuth.disabled = false;
+        } catch (err) {
+          result.textContent = 'MusicKit NO está disponible ❌\n' + err.message;
+        }
+      };
+
+      btnAuth.onclick = async () => {
+        const result = document.getElementById('result');
+        if (!window.music) {
+          result.textContent = 'Primero pulsa "Comprobar MusicKit" para configurar.';
+          return;
+        }
+
+        result.textContent = 'Solicitando autorización...';
+        try {
+          const userToken = await window.music.authorize();
+          result.textContent =
+            'Autorización completada ✅\n\n' +
+            'User Token (corto): ' + (userToken ? userToken.slice(0, 32) + '…' : 'n/d') + '\n\n' +
+            'music.isAuthorized = ' + window.music.isAuthorized;
+        } catch (err) {
+          result.textContent = 'Error en autorización ❌\n' + err.message;
+        }
+      };
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
